@@ -1,118 +1,190 @@
 // AMAZING
 //
-// Converted from BASIC to Javascript by Oscar Toledo G. (nanochess)
+// Originally converted from BASIC to Javascript by Oscar Toledo G. (nanochess)
 //
 
-function print(str)
-{
+/**
+ * @TODO
+ * Variable rename
+ * Refactor into functions
+ * 0-based indexing
+ * Process @TODO in code
+ * Remove @DEBUG
+ * Explore real refactoring
+ */
+
+function print(str) {
     document.getElementById("output").appendChild(document.createTextNode(str));
 }
 
-function input()
-{
-    var input_element;
-    var input_str;
-    
+function input(defaultValue) {
     return new Promise(function (resolve) {
-                       input_element = document.createElement("INPUT");
-                       
-                       print("? ");
-                       input_element.setAttribute("type", "text");
-                       input_element.setAttribute("length", "50");
-                       document.getElementById("output").appendChild(input_element);
-                       input_element.focus();
-                       input_str = undefined;
-                       input_element.addEventListener("keydown", function (event) {
-                                                      if (event.keyCode == 13) {
-                                                      input_str = input_element.value;
-                                                      document.getElementById("output").removeChild(input_element);
-                                                      print(input_str);
-                                                      print("\n");
-                                                      resolve(input_str);
-                                                      }
-                                                      });
-                       });
+        const input_element = document.createElement("INPUT");
+
+        print("? ");
+        input_element.setAttribute("type", "text");
+        input_element.setAttribute("length", "50");
+        input_element.setAttribute("value", defaultValue || "");
+        document.getElementById("output").appendChild(input_element);
+        input_element.focus();
+        input_element.addEventListener("keydown", function (event) {
+            if (event.keyCode == 13) {
+                const input_str = input_element.value;
+                document.getElementById("output").removeChild(input_element);
+                print(input_str);
+                print("\n");
+                resolve(input_str);
+            }
+        });
+    });
 }
 
-function tab(space)
-{
-    var str = "";
-    while (space-- > 0)
+function tab(space) {
+    let str = "";
+    while (space-- > 0) {
         str += " ";
+    }
     return str;
 }
 
-print(tab(28) + "AMAZING PROGRAM\n");
-print(tab(15) + "CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\n");
-print("\n");
-print("\n");
-print("\n");
-print("FOR EXAMPLE TYPE 10,10 AND PRESS ENTER\n");
-print("\n");
+function printTitle() {
+    print(tab(28) + "AMAZING PROGRAM\n");
+    print(tab(15) + "CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\n");
+    print("\n");
+    print("\n");
+    print("\n");
+    print("FOR EXAMPLE TYPE 10,10 AND PRESS ENTER\n");
+    print("\n");
+}
 
-// Main program
-async function main()
-{
+async function askForDimensions(defaultDimensions) {
     while (1) {
         print("WHAT ARE YOUR WIDTH AND LENGTH");
-        a = await input();
-        h = parseInt(a);
-        v2 = parseInt(a.substr(a.indexOf(",") + 1));
-        if (h > 1 && v2 > 1)
-            break;
+        const response = await input(defaultDimensions);
+        const dimensions = response.split(",");
+        if (dimensions[0] > 1 && dimensions[1] > 1)
+            return dimensions;
         print("MEANINGLESS DIMENSIONS.  TRY AGAIN.\n");
     }
-    w = [];
-    v = [];
-    for (i = 1; i <= h; i++) {
-        w[i] = [];
+}
+
+// @TODO Rename this function (probably)
+function initGrids(rows, columns) {
+    const stepHistory = [];
+    const v = [];
+    for (let i = 1; i <= columns; i++) {
+        stepHistory[i] = [];
         v[i] = [];
-        for (j = 1; j <= v2; j++) {
-            w[i][j] = 0;
+
+        for (j = 1; j <= rows; j++) {
+            stepHistory[i][j] = 0;
             v[i][j] = 0;
         }
     }
+
+    return [stepHistory, v];
+}
+
+function isExplorationComplete(rows, columns, nextStepCounter) {
+    return nextStepCounter == columns * rows + 1;
+}
+
+function printMaze(rows, columns, cellWalls) {
+    for (let j = 1; j <= rows; j++) {
+        // Print the row's 'horizontal' walls
+        let str = "I";
+        for (let i = 1; i <= columns; i++) {
+            if (cellWalls[i][j] < 2)
+                str += "  I";
+            else
+                str += "   ";
+        }
+        print(str + "\n");
+
+        // Print the row's lower walls
+        str = "";
+        for (let i = 1; i <= columns; i++) {
+            if (cellWalls[i][j] == 0 || cellWalls[i][j] == 2)
+                str += ":--";
+            else
+                str += ":  ";
+        }
+        print(str + ".\n");
+    }
+}
+
+function printVisitHistory(rows, columns, stepHistory) {
+    for (let j = 1; j <= rows; j++) {
+        let str = "I";
+        for (let i = 1; i <= columns; i++) {
+            str += stepHistory[i][j] + " ";
+        }
+        print(str + "\n");
+    }
+}
+
+// Main program
+async function main() {
+    const debugDimensions = "3,3"; // @DEBUG
+    printTitle();
+    const [columns, rows] = await askForDimensions(debugDimensions);
     print("\n");
     print("\n");
     print("\n");
     print("\n");
-    q = 0;
-    z = 0;
-    x = Math.floor(Math.random() * h + 1);
-    for (i = 1; i <= h; i++) {
-        if (i == x)
+
+    const [stepHistory, v] = initGrids(rows, columns);
+    // stepHistory is a 2d grid of numbers which indicate the step on which I already visited each cell (or 0 for unvisited)
+    // 'v' is a 2d grid of numbers which identify what walls each cell has
+    // v == 0: Right wall, bottom wall
+    // v == 1: Right wall
+    // v == 2: Bottom wall
+
+    // Choose a starting cell
+    let nextColumn = Math.floor(Math.random() * columns + 1);
+    let q = 0;
+    let z = 0;
+
+    // Print the top row's vertical walls
+    // X represents the starting cell, so it's blank
+    // All other cells in this direction are blocked
+    for (i = 1; i <= columns; i++) {
+        if (i == nextColumn)
             print(".  ");
         else
             print(".--");
     }
     print(".\n");
-    c = 1;
-    w[x][1] = c;
-    c++;
-    r = x;
-    s = 1;
-    entry = 0;
+
+
+    let nextStepCounter = 1;  // Next-step order. Its current value is the 'step' number that the next cell we explore will have.
+    stepHistory[nextColumn][1] = nextStepCounter;
+    nextStepCounter++;
+    let currentColumn = nextColumn;
+    let currentRow = 1;
+    let entry = 0;  // This *could* be an indicator for where I can go next
+    let x = nextColumn; // @DEBUG Used for backwards compatibility because there's a lot of 'x' references that need to be updated to nextColumn
     while (1) {
         if (entry == 2) {	// Search for a non-explored cell
             do {
-                if (r < h) {
-                    r++;
-                } else if (s < v2) {
-                    r = 1;
-                    s++;
+                if (currentColumn < columns) {
+                    currentColumn++;
+                } else if (currentRow < rows) {
+                    currentColumn = 1;
+                    currentRow++;
                 } else {
-                    r = 1;
-                    s = 1;
+                    currentColumn = 1;
+                    currentRow = 1;
                 }
-            } while (w[r][s] == 0) ;
+            } while (stepHistory[currentColumn][currentRow] == 0) ;
         }
-        if (entry == 0 && r - 1 > 0 && w[r - 1][s] == 0) {	// Can go left?
-            if (s - 1 > 0 && w[r][s - 1] == 0) {	// Can go up?
-                if (r < h && w[r + 1][s] == 0) {	// Can go right?
+        if (entry == 0 && currentColumn - 1 > 0 && stepHistory[currentColumn - 1][currentRow] == 0) {	// Can go left?
+            if (currentRow - 1 > 0 && stepHistory[currentColumn][currentRow - 1] == 0) {	// Can go up?
+                if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] == 0) {	// Can go right?
                     // Choose left/up/right
                     x = Math.floor(Math.random() * 3 + 1);
-                } else if (s < v2) {
-                    if (w[r][s + 1] == 0) {	// Can go down?
+                } else if (currentRow < rows) {
+                    if (stepHistory[currentColumn][currentRow + 1] == 0) {	// Can go down?
                         // Choose left/up/down
                         x = Math.floor(Math.random() * 3 + 1);
                         if (x == 3)
@@ -128,9 +200,9 @@ async function main()
                     if (x == 3)
                         x = 4;
                 }
-            } else if (r < h && w[r + 1][s] == 0) {	// Can go right?
-                if (s < v2) {
-                    if (w[r][s + 1] == 0) {	// Can go down?
+            } else if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] == 0) {	// Can go right?
+                if (currentRow < rows) {
+                    if (stepHistory[currentColumn][currentRow + 1] == 0) {	// Can go down?
                         // Choose left/right/down
                         x = Math.floor(Math.random() * 3 + 1);
                     } else {
@@ -148,8 +220,8 @@ async function main()
                     if (x >= 2)
                         x++;
                 }
-            } else if (s < v2) {
-                if (w[r][s + 1] == 0) {	// Can go down?
+            } else if (currentRow < rows) {
+                if (stepHistory[currentColumn][currentRow + 1] == 0) {	// Can go down?
                     // Choose left/down
                     x = Math.floor(Math.random() * 2 + 1);
                     if (x == 2)
@@ -165,10 +237,10 @@ async function main()
                 if (x == 2)
                     x = 4;
             }
-        } else if (s - 1 > 0 && w[r][s - 1] == 0) {	// Can go up?
-            if (r < h && w[r + 1][s] == 0) {
-                if (s < v2) {
-                    if (w[r][s + 1] == 0)
+        } else if (currentRow - 1 > 0 && stepHistory[currentColumn][currentRow - 1] == 0) {	// Can go up?
+            if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] == 0) {
+                if (currentRow < rows) {
+                    if (stepHistory[currentColumn][currentRow + 1] == 0)
                         x = Math.floor(Math.random() * 3 + 2);
                     else
                         x = Math.floor(Math.random() * 2 + 2);
@@ -178,8 +250,8 @@ async function main()
                     q = 1;
                     x = Math.floor(Math.random() * 3 + 2);
                 }
-            } else if (s < v2) {
-                if (w[r][s + 1] == 0) {
+            } else if (currentRow < rows) {
+                if (stepHistory[currentColumn][currentRow + 1] == 0) {
                     x = Math.floor(Math.random() * 2 + 2);
                     if (x == 3)
                         x = 4;
@@ -194,9 +266,9 @@ async function main()
                 if (x == 3)
                     x = 4;
             }
-        } else if (r < h && w[r + 1][s] == 0) {	// Can go right?
-            if (s < v2) {
-                if (w[r][s + 1] == 0)
+        } else if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] == 0) {	// Can go right?
+            if (currentRow < rows) {
+                if (stepHistory[currentColumn][currentRow + 1] == 0)
                     x = Math.floor(Math.random() * 2 + 3);
                 else
                     x = 3;
@@ -206,8 +278,8 @@ async function main()
                 q = 1;
                 x = Math.floor(Math.random() * 2 + 3);
             }
-        } else if (s < v2) {
-            if (w[r][s + 1] == 0) 	// Can go down?
+        } else if (currentRow < rows) {
+            if (stepHistory[currentColumn][currentRow + 1] == 0) 	// Can go down?
                 x = 4;
             else {
                 entry = 2;	// Blocked!
@@ -221,99 +293,82 @@ async function main()
             x = 4;
         }
         if (x == 1) {	// Left
-            w[r - 1][s] = c;
-            c++;
-            v[r - 1][s] = 2;
-            r--;
-            if (c == h * v2 + 1)
+            stepHistory[currentColumn - 1][currentRow] = nextStepCounter;
+            nextStepCounter++;
+            v[currentColumn - 1][currentRow] = 2;
+            currentColumn--;
+            if (isExplorationComplete(rows, columns, nextStepCounter)) {
                 break;
+            }
             q = 0;
             entry = 0;
         } else if (x == 2) {	// Up
-            w[r][s - 1] = c;
-            c++;
-            v[r][s - 1] = 1;
-            s--;
-            if (c == h * v2 + 1)
+            stepHistory[currentColumn][currentRow - 1] = nextStepCounter;
+            nextStepCounter++;
+            v[currentColumn][currentRow - 1] = 1;
+            currentRow--;
+            if (isExplorationComplete(rows, columns, nextStepCounter)) {
                 break;
+            }
             q = 0;
             entry = 0;
         } else if (x == 3) {	// Right
-            w[r + 1][s] = c;
-            c++;
-            if (v[r][s] == 0)
-                v[r][s] = 2;
+            stepHistory[currentColumn + 1][currentRow] = nextStepCounter;
+            nextStepCounter++;
+            if (v[currentColumn][currentRow] == 0)
+                v[currentColumn][currentRow] = 2;
             else
-                v[r][s] = 3;
-            r++;
-            if (c == h * v2 + 1)
+                v[currentColumn][currentRow] = 3;
+            currentColumn++;
+            if (isExplorationComplete(rows, columns, nextStepCounter)) {
                 break;
+            }
             entry = 1;
         } else if (x == 4) {	// Down
             if (q != 1) {	// Only if not blocked
-                w[r][s + 1] = c;
-                c++;
-                if (v[r][s] == 0)
-                    v[r][s] = 1;
+                stepHistory[currentColumn][currentRow + 1] = nextStepCounter;
+                nextStepCounter++;
+                if (v[currentColumn][currentRow] == 0)
+                    v[currentColumn][currentRow] = 1;
                 else
-                    v[r][s] = 3;
-                s++;
-                if (c == h * v2 + 1)
+                    v[currentColumn][currentRow] = 3;
+                currentRow++;
+                if (isExplorationComplete(rows, columns, nextStepCounter)) {
                     break;
+                }
                 entry = 0;
             } else {
                 z = 1;
-                if (v[r][s] == 0) {
-                    v[r][s] = 1;
+                if (v[currentColumn][currentRow] == 0) {
+                    v[currentColumn][currentRow] = 1;
                     q = 0;
-                    r = 1;
-                    s = 1;
-                    while (w[r][s] == 0) {
-                        if (r < h) {
-                            r++;
-                        } else if (s < v2) {
-                            r = 1;
-                            s++;
+                    currentColumn = 1;
+                    currentRow = 1;
+                    while (stepHistory[currentColumn][currentRow] == 0) {
+                        if (currentColumn < columns) {
+                            currentColumn++;
+                        } else if (currentRow < rows) {
+                            currentColumn = 1;
+                            currentRow++;
                         } else {
-                            r = 1;
-                            s = 1;
+                            currentColumn = 1;
+                            currentRow = 1;
                         }
                     }
                     entry = 0;
                 } else {
-                    v[r][s] = 3;
+                    v[currentColumn][currentRow] = 3;
                     q = 0;
                     entry = 2;
                 }
             }
         }
     }
-    for (j = 1; j <= v2; j++) {
-        str = "I";
-        for (i = 1; i <= h; i++) {
-            if (v[i][j] < 2)
-                str += "  I";
-            else
-                str += "   ";
-        }
-        print(str + "\n");
-        str = "";
-        for (i = 1; i <= h; i++) {
-            if (v[i][j] == 0 || v[i][j] == 2)
-                str += ":--";
-            else
-                str += ":  ";
-        }
-        print(str + ".\n");
-    }
-// If you want to see the order of visited cells
-//    for (j = 1; j <= v2; j++) {
-//        str = "I";
-//        for (i = 1; i <= h; i++) {
-//            str += w[i][j] + " ";
-//        }
-//        print(str + "\n");
-//    }
+
+    // Output
+    printMaze(rows, columns, v);
+
+    printVisitHistory(rows, columns, stepHistory);
 }
 
 main();
