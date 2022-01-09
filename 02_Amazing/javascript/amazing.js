@@ -5,7 +5,7 @@
 
 /**
  * @TODO
- * Replace method for deciding direction with a much smarter approach of choosing one element from an array of valid directions
+ * Collapse branches around which options to choose from into a collection array that chooses one at the end
  * Variable rename
  * Refactor into functions
  * 0-based indexing
@@ -129,6 +129,11 @@ function printVisitHistory(rows, columns, stepHistory) {
     }
 }
 
+function chooseDirection(options) {
+    const index = Math.floor(Math.random() * options.length);
+    return options[index];
+}
+
 // Main program
 async function main() {
     const debugDimensions = "3,3"; // @DEBUG
@@ -191,68 +196,35 @@ async function main() {
         if (entry === 0 && currentColumn - 1 > 0 && stepHistory[currentColumn - 1][currentRow] === 0) {	// Can go left?
             if (currentRow - 1 > 0 && stepHistory[currentColumn][currentRow - 1] === 0) {	// Can go up?
                 if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {	// Can go right?
-                    // Choose left/up/right
-                    nextDirection = Math.floor(Math.random() * 3 + 1);
+                    nextDirection = chooseDirection([LEFT, UP, RIGHT]);
                 } else if (currentRow < rows) {
                     if (stepHistory[currentColumn][currentRow + 1] === 0) {	// Can go down?
-                        // Choose left/up/down
-                        nextDirection = Math.floor(Math.random() * 3 + 1);
-
-                        // Since right isn't a valid option but this randomization approach doesn't let us skip steps,
-                        // we'll treat the value of RIGHT as DOWN
-                        if (nextDirection === RIGHT)
-                            nextDirection = DOWN;
+                        nextDirection = chooseDirection([LEFT, UP, DOWN]);
                     } else {
-                        nextDirection = Math.floor(Math.random() * 2 + 1);
+                        nextDirection = chooseDirection([LEFT, UP]);
                     }
                 } else if (z === 1) {
-                    nextDirection = Math.floor(Math.random() * 2 + 1);
+                    nextDirection = chooseDirection([LEFT, UP]);
                 } else {
                     q = 1;
-                    nextDirection = Math.floor(Math.random() * 3 + 1);
-
-                    // Since right isn't a valid option but this randomization approach doesn't let us skip steps,
-                    // we'll treat the value of RIGHT as DOWN
-                    if (nextDirection === RIGHT)
-                        nextDirection = DOWN;
+                    nextDirection = chooseDirection([LEFT, UP, DOWN]);
                 }
             } else if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {	// Can go right?
                 if (currentRow < rows) {
                     if (stepHistory[currentColumn][currentRow + 1] === 0) {	// Can go down?
-                        // Choose left/right/down
-                        nextDirection = Math.floor(Math.random() * 3 + 1);
+                        nextDirection = chooseDirection([LEFT, RIGHT, DOWN]);
                     } else {
-                        nextDirection = Math.floor(Math.random() * 2 + 1);
+                        nextDirection = chooseDirection([LEFT, RIGHT]);
                     }
-
-                    // Since UP isn't a valid option but this randomization approach doesn't let us skip steps,
-                    // we'll treat the value of UP as RIGHT and RIGHT as DOWN
-                    if (nextDirection >= UP)
-                        nextDirection++;
                 } else if (z === 1) {
-                    nextDirection = Math.floor(Math.random() * 2 + 1);
-
-                    // Since UP and DOWN aren't valid options but this randomization approach doesn't let us skip steps,
-                    // we'll treat the value of UP as RIGHT
-                    if (nextDirection >= UP)
-                        nextDirection++;
+                    nextDirection = chooseDirection([LEFT, RIGHT]);
                 } else {
                     q = 1;
-                    nextDirection = Math.floor(Math.random() * 3 + 1);
-                    // Since UP isn't a valid option but this randomization approach doesn't let us skip steps,
-                    // we'll treat the value of UP as RIGHT and RIGHT as DOWN
-                    if (nextDirection >= UP)
-                        nextDirection++;
+                    nextDirection = chooseDirection([LEFT, RIGHT, DOWN]);
                 }
             } else if (currentRow < rows) {
                 if (stepHistory[currentColumn][currentRow + 1] === 0) {	// Can go down?
-                    // Choose left/down
-                    nextDirection = Math.floor(Math.random() * 2 + 1);
-
-                    // Since UP and RIGHT aren't valid options but this randomization approach doesn't let us skip steps,
-                    // we'll treat the value of UP as DOWN
-                    if (nextDirection === UP)
-                        nextDirection = DOWN;
+                    nextDirection = chooseDirection([LEFT, DOWN]);
                 } else {
                     nextDirection = LEFT;
                 }
@@ -260,34 +232,24 @@ async function main() {
                 nextDirection = LEFT;
             } else {
                 q = 1;
-                nextDirection = Math.floor(Math.random() * 2 + 1);
-
-                // Since UP and RIGHT aren't valid options but this randomization approach doesn't let us skip steps,
-                // we'll treat the value of UP as DOWN
-                if (nextDirection === UP)
-                    nextDirection = DOWN;
+                nextDirection = chooseDirection([LEFT, DOWN]);
             }
         } else if (currentRow - 1 > 0 && stepHistory[currentColumn][currentRow - 1] === 0) {	// Can go up?
             if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {
                 if (currentRow < rows) {
                     if (stepHistory[currentColumn][currentRow + 1] === 0)
-                        nextDirection = Math.floor(Math.random() * 3 + 2);
+                        nextDirection = chooseDirection([UP, RIGHT, DOWN]);
                     else
-                        nextDirection = Math.floor(Math.random() * 2 + 2);
+                        nextDirection = chooseDirection([UP, RIGHT]);
                 } else if (z === 1) {
-                    nextDirection = Math.floor(Math.random() * 2 + 2);
-                } else {
+                    nextDirection = chooseDirection([UP, RIGHT]);
                     q = 1;
-                    nextDirection = Math.floor(Math.random() * 3 + 2);
+                } else {
+                    nextDirection = chooseDirection([UP, RIGHT, DOWN]);
                 }
             } else if (currentRow < rows) {
                 if (stepHistory[currentColumn][currentRow + 1] === 0) {
-                    nextDirection = Math.floor(Math.random() * 2 + 2);
-
-                    // Since RIGHT isn't valid options but this randomization approach doesn't let us skip steps,
-                    // we'll treat the value of RIGHT as DOWN
-                    if (nextDirection === RIGHT)
-                        nextDirection = DOWN;
+                    nextDirection = chooseDirection([UP, DOWN]);
                 } else {
                     nextDirection = UP;
                 }
@@ -295,23 +257,19 @@ async function main() {
                 nextDirection = UP;
             } else {
                 q = 1;
-                nextDirection = Math.floor(Math.random() * 2 + 2);
-                // Since RIGHT isn't valid options but this randomization approach doesn't let us skip steps,
-                // we'll treat the value of RIGHT as DOWN
-                if (nextDirection === RIGHT)
-                    nextDirection = DOWN;
+                nextDirection = chooseDirection([UP, DOWN]);
             }
         } else if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {	// Can go right?
             if (currentRow < rows) {
                 if (stepHistory[currentColumn][currentRow + 1] === 0)
-                    nextDirection = Math.floor(Math.random() * 2 + 3);
+                nextDirection = chooseDirection([RIGHT, DOWN]);
                 else
                     nextDirection = RIGHT;
             } else if (z === 1) {
                 nextDirection = RIGHT;
             } else {
                 q = 1;
-                nextDirection = Math.floor(Math.random() * 2 + 3);
+                nextDirection = chooseDirection([RIGHT, DOWN]);
             }
         } else if (currentRow < rows) {
             if (stepHistory[currentColumn][currentRow + 1] === 0) 	// Can go down?
