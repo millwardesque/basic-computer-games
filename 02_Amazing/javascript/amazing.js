@@ -6,7 +6,7 @@
 /**
  * @TODO
  * Collapse branches around which options to choose from into a collection array that chooses one at the end
- * Variable rename
+ * Variable rename (entry, q, z are left)
  * Refactor into functions
  * 0-based indexing
  * Process @TODO in code
@@ -18,6 +18,11 @@ const LEFT = 1;
 const UP = 2;
 const RIGHT = 3;
 const DOWN = 4;
+
+const WALLS_RIGHT_DOWN = 0;
+const WALLS_RIGHT = 1;
+const WALLS_DOWN = 2;
+const WALLS_NONE = 3;
 
 function print(str) {
     document.getElementById("output").appendChild(document.createTextNode(str));
@@ -74,33 +79,32 @@ async function askForDimensions(defaultDimensions) {
     }
 }
 
-// @TODO Rename this function (probably)
 function initGrids(rows, columns) {
     const stepHistory = [];
-    const v = [];
+    const walls = [];
     for (let i = 1; i <= columns; i++) {
         stepHistory[i] = [];
-        v[i] = [];
+        walls[i] = [];
 
         for (j = 1; j <= rows; j++) {
             stepHistory[i][j] = 0;
-            v[i][j] = 0;
+            walls[i][j] = WALLS_RIGHT_DOWN;
         }
     }
 
-    return [stepHistory, v];
+    return [stepHistory, walls];
 }
 
 function isExplorationComplete(rows, columns, nextStepCounter) {
     return nextStepCounter === columns * rows + 1;
 }
 
-function printMaze(rows, columns, cellWalls) {
+function printMaze(rows, columns, walls) {
     for (let j = 1; j <= rows; j++) {
         // Print the row's 'horizontal' walls
         let str = "I";
         for (let i = 1; i <= columns; i++) {
-            if (cellWalls[i][j] < 2)
+            if (walls[i][j] === WALLS_RIGHT_DOWN || walls[i][j] === WALLS_RIGHT)
                 str += "  I";
             else
                 str += "   ";
@@ -110,7 +114,7 @@ function printMaze(rows, columns, cellWalls) {
         // Print the row's lower walls
         str = "";
         for (let i = 1; i <= columns; i++) {
-            if (cellWalls[i][j] === 0 || cellWalls[i][j] === 2)
+            if (walls[i][j] === WALLS_RIGHT_DOWN || walls[i][j] === WALLS_DOWN)
                 str += ":--";
             else
                 str += ":  ";
@@ -136,7 +140,7 @@ function chooseDirection(options) {
 
 // Main program
 async function main() {
-    const debugDimensions = "3,3"; // @DEBUG
+    const debugDimensions = "10,10"; // @DEBUG
     printTitle();
     const [columns, rows] = await askForDimensions(debugDimensions);
     print("\n");
@@ -144,24 +148,19 @@ async function main() {
     print("\n");
     print("\n");
 
-    const [stepHistory, v] = initGrids(rows, columns);
+    const [stepHistory, walls] = initGrids(rows, columns);
     // stepHistory is a 2d grid of numbers which indicate the step on which I already visited each cell (or 0 for unvisited)
-    // 'v' is a 2d grid of numbers which identify what walls each cell has
-    // v === 0: Right wall, bottom wall
-    // v === 1: Right wall
-    // v === 2: Bottom wall
+    // walls is a 2d grid of numbers which identify what walls each cell has
 
     // Choose a starting cell
     let startColumn = Math.floor(Math.random() * columns + 1);
-    let q = 0;
-    let z = 0;
 
     // Print the top row's vertical walls
     // startColumn represents the starting cell, so it's blank
     // All other cells in this direction are blocked
     for (i = 1; i <= columns; i++) {
         if (i === startColumn)
-            print(".  ");
+            print( ".  ");
         else
             print(".--");
     }
@@ -172,20 +171,23 @@ async function main() {
     nextStepCounter++;
     let currentColumn = startColumn;
     let currentRow = 1;
-    let entry = 0;  // This *could* be an indicator for where I can go next
+
+    let q = 0;
+    let z = 0;
+    let entry = 0;  // This *could* be an indicator for where I can go next?
     while (1) {
-        let nextDirection = 4;
+        let nextDirection = DOWN;
 
         // We can't reach anywhere new from our current square,
         // so pick a different square we've already explored and start from there.
         if (entry === 2) {	// Search for a non-explored cell
             do {
-                if (currentColumn < columns) {
+                if (currentColumn < columns) {  // Check all cells in the current row for one we've explored. If not found, then ...
                     currentColumn++;
-                } else if (currentRow < rows) {
+                } else if (currentRow < rows) { // ... then go down a row and try all those cells for one we've explored. If not found, then ...
                     currentColumn = 1;
                     currentRow++;
-                } else {
+                } else {                        // ... start back in the top-left and go row by row, cell by cell for one we've explored.
                     currentColumn = 1;
                     currentRow = 1;
                 }
@@ -290,7 +292,7 @@ async function main() {
         if (nextDirection === LEFT) {
             stepHistory[currentColumn - 1][currentRow] = nextStepCounter;
             nextStepCounter++;
-            v[currentColumn - 1][currentRow] = 2;
+            walls[currentColumn - 1][currentRow] = WALLS_DOWN;
             currentColumn--;
             if (isExplorationComplete(rows, columns, nextStepCounter)) {
                 break;
@@ -300,7 +302,7 @@ async function main() {
         } else if (nextDirection === UP) {
             stepHistory[currentColumn][currentRow - 1] = nextStepCounter;
             nextStepCounter++;
-            v[currentColumn][currentRow - 1] = 1;
+            walls[currentColumn][currentRow - 1] = WALLS_RIGHT;
             currentRow--;
             if (isExplorationComplete(rows, columns, nextStepCounter)) {
                 break;
@@ -310,10 +312,10 @@ async function main() {
         } else if (nextDirection === RIGHT) {
             stepHistory[currentColumn + 1][currentRow] = nextStepCounter;
             nextStepCounter++;
-            if (v[currentColumn][currentRow] === 0)
-                v[currentColumn][currentRow] = 2;
+            if (walls[currentColumn][currentRow] === WALLS_RIGHT_DOWN)
+                walls[currentColumn][currentRow] = WALLS_DOWN;
             else
-                v[currentColumn][currentRow] = 3;
+                walls[currentColumn][currentRow] = WALLS_NONE;
             currentColumn++;
             if (isExplorationComplete(rows, columns, nextStepCounter)) {
                 break;
@@ -323,10 +325,10 @@ async function main() {
             if (q !== 1) {	// Only if not blocked
                 stepHistory[currentColumn][currentRow + 1] = nextStepCounter;
                 nextStepCounter++;
-                if (v[currentColumn][currentRow] === 0)
-                    v[currentColumn][currentRow] = 1;
+                if (walls[currentColumn][currentRow] === WALLS_RIGHT_DOWN)
+                    walls[currentColumn][currentRow] = WALLS_RIGHT;
                 else
-                    v[currentColumn][currentRow] = 3;
+                    walls[currentColumn][currentRow] = WALLS_NONE;
                 currentRow++;
                 if (isExplorationComplete(rows, columns, nextStepCounter)) {
                     break;
@@ -334,8 +336,8 @@ async function main() {
                 entry = 0;
             } else {
                 z = 1;
-                if (v[currentColumn][currentRow] === 0) {
-                    v[currentColumn][currentRow] = 1;
+                if (walls[currentColumn][currentRow] === WALLS_RIGHT_DOWN) {
+                    walls[currentColumn][currentRow] = WALLS_RIGHT;
                     q = 0;
                     currentColumn = 1;
                     currentRow = 1;
@@ -352,7 +354,7 @@ async function main() {
                     }
                     entry = 0;
                 } else {
-                    v[currentColumn][currentRow] = 3;
+                    walls[currentColumn][currentRow] = WALLS_NONE;
                     q = 0;
                     entry = 2;
                 }
@@ -361,7 +363,7 @@ async function main() {
     }
 
     // Output
-    printMaze(rows, columns, v);
+    printMaze(rows, columns, walls);
 
     print("\nVisit history\n");
     printVisitHistory(rows, columns, stepHistory);
