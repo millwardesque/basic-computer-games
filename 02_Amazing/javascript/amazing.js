@@ -5,9 +5,9 @@
 
 /**
  * @TODO
- * Collapse branches around which options to choose from into a collection array that chooses one at the end
  * Variable rename (entry, q, z are left)
- * Refactor into functions
+ * canGoLeft / Up / Right / Down functions for readability?
+ * Refactor into class
  * 0-based indexing
  * Process @TODO in code
  * Remove @DEBUG
@@ -95,7 +95,13 @@ function initGrids(rows, columns) {
     return [stepHistory, walls];
 }
 
-function isExplorationComplete(rows, columns, nextStepCounter) {
+function canVisit(column, row, stepHistory) {
+    return column >= 1 && column < stepHistory.length &&
+        row >= 1 && row < stepHistory[1].length &&
+        stepHistory[column][row] === 0
+}
+
+function isExplorationComplete(columns, rows, nextStepCounter) {
     return nextStepCounter === columns * rows + 1;
 }
 
@@ -195,86 +201,87 @@ async function main() {
         }
 
         // Decide where to go next.
-        if (entry === 0 && currentColumn - 1 > 0 && stepHistory[currentColumn - 1][currentRow] === 0) {	// Can go left?
-            if (currentRow - 1 > 0 && stepHistory[currentColumn][currentRow - 1] === 0) {	// Can go up?
-                if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {	// Can go right?
-                    nextDirection = chooseDirection([LEFT, UP, RIGHT]);
+        if (entry === 0 && canVisit(currentColumn - 1, currentRow, stepHistory)) {	// Can go left?
+            const possibleDirections = [LEFT];
+            if (canVisit(currentColumn, currentRow - 1, stepHistory)) {	// Can go up?
+                possibleDirections.push(UP);
+                if (canVisit(currentColumn + 1, currentRow, stepHistory)) {	// Can go right?
+                    possibleDirections.push(RIGHT);
                 } else if (currentRow < rows) {
                     if (stepHistory[currentColumn][currentRow + 1] === 0) {	// Can go down?
-                        nextDirection = chooseDirection([LEFT, UP, DOWN]);
-                    } else {
-                        nextDirection = chooseDirection([LEFT, UP]);
+                        possibleDirections.push(DOWN);
                     }
                 } else if (z === 1) {
-                    nextDirection = chooseDirection([LEFT, UP]);
+                    // No-op
                 } else {
                     q = 1;
-                    nextDirection = chooseDirection([LEFT, UP, DOWN]);
+                    possibleDirections.push(DOWN);
                 }
-            } else if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {	// Can go right?
+            } else if (canVisit(currentColumn + 1, currentRow, stepHistory)) {	// Can go right?
+                possibleDirections.push(RIGHT);
                 if (currentRow < rows) {
-                    if (stepHistory[currentColumn][currentRow + 1] === 0) {	// Can go down?
-                        nextDirection = chooseDirection([LEFT, RIGHT, DOWN]);
-                    } else {
-                        nextDirection = chooseDirection([LEFT, RIGHT]);
+                    if (canVisit(currentColumn, currentRow + 1, stepHistory)) {	// Can go down?
+                        possibleDirections.push(DOWN);
                     }
                 } else if (z === 1) {
-                    nextDirection = chooseDirection([LEFT, RIGHT]);
+                    // No-op
                 } else {
                     q = 1;
-                    nextDirection = chooseDirection([LEFT, RIGHT, DOWN]);
+                    possibleDirections.push(DOWN);
                 }
             } else if (currentRow < rows) {
-                if (stepHistory[currentColumn][currentRow + 1] === 0) {	// Can go down?
-                    nextDirection = chooseDirection([LEFT, DOWN]);
-                } else {
-                    nextDirection = LEFT;
+                if (canVisit(currentColumn, currentRow + 1, stepHistory)) {	// Can go down?
+                    possibleDirections.push(DOWN);
                 }
             } else if (z === 1) {
-                nextDirection = LEFT;
+                // No-op
             } else {
                 q = 1;
-                nextDirection = chooseDirection([LEFT, DOWN]);
+                possibleDirections.push(DOWN);
             }
-        } else if (currentRow - 1 > 0 && stepHistory[currentColumn][currentRow - 1] === 0) {	// Can go up?
-            if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {
+
+            nextDirection = chooseDirection(possibleDirections);
+        } else if (canVisit(currentColumn, currentRow - 1, stepHistory)) {	// Can go up?
+            const possibleDirections = [UP];
+            if (canVisit(currentColumn + 1, currentRow, stepHistory)) {
+                possibleDirections.push(RIGHT);
                 if (currentRow < rows) {
-                    if (stepHistory[currentColumn][currentRow + 1] === 0)
-                        nextDirection = chooseDirection([UP, RIGHT, DOWN]);
-                    else
-                        nextDirection = chooseDirection([UP, RIGHT]);
+                    if (canVisit(currentColumn, currentRow + 1, stepHistory)) {
+                        possibleDirections.push(DOWN);
+                    }
                 } else if (z === 1) {
-                    nextDirection = chooseDirection([UP, RIGHT]);
                     q = 1;
                 } else {
-                    nextDirection = chooseDirection([UP, RIGHT, DOWN]);
+                    possibleDirections.push(DOWN);
                 }
             } else if (currentRow < rows) {
-                if (stepHistory[currentColumn][currentRow + 1] === 0) {
-                    nextDirection = chooseDirection([UP, DOWN]);
-                } else {
-                    nextDirection = UP;
+                if (canVisit(currentColumn, currentRow + 1, stepHistory)) {
+                    possibleDirections.push(DOWN);
                 }
             } else if (z === 1) {
-                nextDirection = UP;
+                // No-op
             } else {
                 q = 1;
-                nextDirection = chooseDirection([UP, DOWN]);
+                possibleDirections.push(DOWN);
             }
-        } else if (currentColumn < columns && stepHistory[currentColumn + 1][currentRow] === 0) {	// Can go right?
+
+            nextDirection = chooseDirection(possibleDirections);
+        } else if (canVisit(currentColumn + 1, currentRow, stepHistory)) {	// Can go right?
+            const possibleDirections = [RIGHT];
             if (currentRow < rows) {
-                if (stepHistory[currentColumn][currentRow + 1] === 0)
-                nextDirection = chooseDirection([RIGHT, DOWN]);
-                else
-                    nextDirection = RIGHT;
+                if (canVisit(currentColumn, currentRow + 1, stepHistory)) {
+                    possibleDirections.push(DOWN);
+                }
             } else if (z === 1) {
-                nextDirection = RIGHT;
+                // no-op
             } else {
                 q = 1;
-                nextDirection = chooseDirection([RIGHT, DOWN]);
+                possibleDirections.push(DOWN);
             }
+
+            nextDirection = chooseDirection(possibleDirections);
         } else if (currentRow < rows) {
-            if (stepHistory[currentColumn][currentRow + 1] === 0) 	// Can go down?
+            if (canVisit(currentColumn, currentRow + 1, stepHistory)) 	// Can go down?
                 nextDirection = DOWN;
             else {
                 entry = 2;	// Blocked!
@@ -294,7 +301,7 @@ async function main() {
             nextStepCounter++;
             walls[currentColumn - 1][currentRow] = WALLS_DOWN;
             currentColumn--;
-            if (isExplorationComplete(rows, columns, nextStepCounter)) {
+            if (isExplorationComplete(columns, rows, nextStepCounter)) {
                 break;
             }
             q = 0;
@@ -304,7 +311,7 @@ async function main() {
             nextStepCounter++;
             walls[currentColumn][currentRow - 1] = WALLS_RIGHT;
             currentRow--;
-            if (isExplorationComplete(rows, columns, nextStepCounter)) {
+            if (isExplorationComplete(columns, rows, nextStepCounter)) {
                 break;
             }
             q = 0;
@@ -317,7 +324,7 @@ async function main() {
             else
                 walls[currentColumn][currentRow] = WALLS_NONE;
             currentColumn++;
-            if (isExplorationComplete(rows, columns, nextStepCounter)) {
+            if (isExplorationComplete(columns, rows, nextStepCounter)) {
                 break;
             }
             entry = 1;
@@ -330,7 +337,7 @@ async function main() {
                 else
                     walls[currentColumn][currentRow] = WALLS_NONE;
                 currentRow++;
-                if (isExplorationComplete(rows, columns, nextStepCounter)) {
+                if (isExplorationComplete(columns, rows, nextStepCounter)) {
                     break;
                 }
                 entry = 0;
