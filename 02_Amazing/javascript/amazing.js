@@ -5,7 +5,7 @@
 
 /**
  * @TODO
- * Variable rename (entry, q, z are left)
+ * Variable rename (entry, q, z)
  * canGoLeft / Up / Right / Down functions for readability?
  * Refactor into class
  * 0-based indexing
@@ -105,7 +105,7 @@ function isExplorationComplete(columns, rows, nextStepCounter) {
     return nextStepCounter === columns * rows + 1;
 }
 
-function printMaze(rows, columns, walls) {
+function printMaze(columns, rows, walls) {
     for (let j = 1; j <= rows; j++) {
         // Print the row's 'horizontal' walls
         let str = "I";
@@ -129,7 +129,33 @@ function printMaze(rows, columns, walls) {
     }
 }
 
-function printVisitHistory(rows, columns, stepHistory) {
+function printMazeAndLocation(columns, rows, walls, currentColumn, currentRow) {
+    for (let j = 1; j <= rows; j++) {
+        // Print the row's 'horizontal' walls
+        let str = "I";
+        for (let i = 1; i <= columns; i++) {
+            let cellContent = currentColumn === i && currentRow === j ? '* ' : '  ';
+
+            if (walls[i][j] === WALLS_RIGHT_DOWN || walls[i][j] === WALLS_RIGHT)
+                str += cellContent + "I";
+            else
+                str += cellContent + " ";
+        }
+        print(str + "\n");
+
+        // Print the row's lower walls
+        str = "";
+        for (let i = 1; i <= columns; i++) {
+            if (walls[i][j] === WALLS_RIGHT_DOWN || walls[i][j] === WALLS_DOWN)
+                str += ":--";
+            else
+                str += ":  ";
+        }
+        print(str + ".\n");
+    }
+}
+
+function printVisitHistory(columns, rows, stepHistory) {
     for (let j = 1; j <= rows; j++) {
         let str = "I ";
         for (let i = 1; i <= columns; i++) {
@@ -178,10 +204,20 @@ async function main() {
     let currentColumn = startColumn;
     let currentRow = 1;
 
-    let q = 0;
+    let q = 0;  // Set when we can only go in one direction because we're at the bottom and we've visited all the ther non-down cells
     let z = 0;
     let entry = 0;  // This *could* be an indicator for where I can go next?
+    /*
+     * entry = 0: Set after walking left, up, or some paths of down. Permits walking left.
+     * entry = 1: Set after walking right, I think to prevent from walking back left?
+     * entry = 2: Fully blocked, a new current square needs to be found
+     */
+
     while (1) {
+        print("\nStep " + (nextStepCounter - 1) + "\n");
+        printMazeAndLocation(columns, rows, walls, currentColumn, currentRow);
+        print("\n");
+
         let nextDirection = DOWN;
 
         // We can't reach anywhere new from our current square,
@@ -243,7 +279,7 @@ async function main() {
             nextDirection = chooseDirection(possibleDirections);
         } else if (canVisit(currentColumn, currentRow - 1, stepHistory)) {	// Can go up?
             const possibleDirections = [UP];
-            if (canVisit(currentColumn + 1, currentRow, stepHistory)) {
+            if (canVisit(currentColumn + 1, currentRow, stepHistory)) { // Can go right?
                 possibleDirections.push(RIGHT);
                 if (currentRow < rows) {
                     if (canVisit(currentColumn, currentRow + 1, stepHistory)) {
@@ -254,7 +290,7 @@ async function main() {
                 } else {
                     possibleDirections.push(DOWN);
                 }
-            } else if (currentRow < rows) {
+            } else if (currentRow < rows) { // Can go down?
                 if (canVisit(currentColumn, currentRow + 1, stepHistory)) {
                     possibleDirections.push(DOWN);
                 }
@@ -319,10 +355,12 @@ async function main() {
         } else if (nextDirection === RIGHT) {
             stepHistory[currentColumn + 1][currentRow] = nextStepCounter;
             nextStepCounter++;
-            if (walls[currentColumn][currentRow] === WALLS_RIGHT_DOWN)
+            if (walls[currentColumn][currentRow] === WALLS_RIGHT_DOWN) {
                 walls[currentColumn][currentRow] = WALLS_DOWN;
-            else
+            } else {
                 walls[currentColumn][currentRow] = WALLS_NONE;
+            }
+
             currentColumn++;
             if (isExplorationComplete(columns, rows, nextStepCounter)) {
                 break;
@@ -367,13 +405,15 @@ async function main() {
                 }
             }
         }
+
+        print(`Status: ${nextDirection}, ${q}, ${z}, ${entry}\n`);
     }
 
     // Output
-    printMaze(rows, columns, walls);
+    printMaze(columns, rows, walls);
 
     print("\nVisit history\n");
-    printVisitHistory(rows, columns, stepHistory);
+    printVisitHistory(columns, rows, stepHistory);
 }
 
 main();
